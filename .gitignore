@@ -1,0 +1,11 @@
+# Ignore Obsidian cache and workspace
+.obsidian/cache/
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/graph.json
+
+# Ignore plugins (each person can use their own)
+.obsidian/plugins/
+
+# Appearance settings often differ between users
+.obsidian/appearance.json
