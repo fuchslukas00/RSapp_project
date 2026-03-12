@@ -2,7 +2,7 @@ from pathlib import Path
 import shutil
 
 # Root folder from previous extraction
-src_root = Path(r"C:\Users\lukas\Documents\Studium\Remote_Sensing_Products\project\crop_yields\data\crop_types\crop_types2\Results\extracted_by_year")
+src_root = Path(r"C:\Users\lukas\Documents\Studium\Remote_Sensing_Products\project\crop_yields\data\crop_types_D\crop_types\Results\extracted_by_year")
 
 # New folder for only TIF files
 out_root = src_root.parent / "tifs_by_year"

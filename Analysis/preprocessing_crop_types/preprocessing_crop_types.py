@@ -7,79 +7,84 @@ import numpy as np
 # CONFIGURATION
 # ------------------------------------------------------------
 
-# Folder containing all 2022 tiles
-input_folder = Path(r"C:\Users\lukas\Documents\Studium\Remote_Sensing_Products\project\crop_yields\data\crop_types\crop_types2\Results\tifs_by_year\2017")
-
-# Output file
-output_file = input_folder.parent / "wheat_mask_2017_bw.tif"
-
-# Wheat class value in HRL
+base_folder = Path(r"C:\Users\lukas\Documents\Studium\Remote_Sensing_Products\project\crop_yields\data\crop_types_D\crop_types\Results\tifs_by_year")
 WHEAT_CLASS = 1110
 
 
-# ------------------------------------------------------------
-# 1) Load all raster tiles
-# ------------------------------------------------------------
+year_folders = [f for f in base_folder.iterdir() if f.is_dir()]
+print(f"Found {len(year_folders)} year folders.")
 
-tif_files = list(input_folder.glob("*.tif"))
+for year_folder in sorted(year_folders):
+    year = year_folder.name
+    print("\n-------------------------------------")
+    print(f"Processing year: {year}")
 
-if not tif_files:
-    raise ValueError("No TIF files found.")
+    tif_files = list(year_folder.glob("*.tif"))
+    if not tif_files:
+        print("No TIF files found. Skipping.")
+        continue
 
-print(f"Found {len(tif_files)} tiles.")
+    print(f"Found {len(tif_files)} tiles.")
 
-src_files = [rasterio.open(fp) for fp in tif_files]
+    # Temporary folder for reclassified tiles
+    temp_dir = year_folder / "temp_binary_tiles"
+    temp_dir.mkdir(exist_ok=True)
 
+    binary_tile_paths = []
 
-# ------------------------------------------------------------
-# 2) Mosaic all tiles
-# ------------------------------------------------------------
+    # --------------------------------------------------------
+    # 1) Reclassify each tile individually
+    # --------------------------------------------------------
+    for tif_path in tif_files:
+        with rasterio.open(tif_path) as src:
+            data = src.read(1)
 
-mosaic, out_transform = merge(src_files)
+            # Reclassify to binary uint8
+            binary = (data == WHEAT_CLASS).astype("uint8")
 
-# mosaic shape = (bands, height, width)
-# HRL has 1 band
-mosaic = mosaic[0]  # take first band
+            out_meta = src.meta.copy()
+            out_meta.update({
+                "dtype": "uint8",
+                "count": 1,
+                "compress": "lzw"
+            })
 
-print("Mosaic created.")
+            out_path = temp_dir / f"{tif_path.stem}_binary.tif"
 
+            with rasterio.open(out_path, "w", **out_meta) as dst:
+                dst.write(binary, 1)
 
-# ------------------------------------------------------------
-# 3) Reclassify: Wheat → 1, others → 0
-# ------------------------------------------------------------
+            binary_tile_paths.append(out_path)
 
-wheat_mask = np.where(mosaic == WHEAT_CLASS, 1, 0).astype("uint8")
+    print("Tile-wise reclassification done.")
 
-print("Reclassification done.")
+    # --------------------------------------------------------
+    # 2) Merge binary tiles
+    # --------------------------------------------------------
+    src_files = [rasterio.open(fp) for fp in binary_tile_paths]
 
+    mosaic, out_transform = merge(src_files)
+    mosaic = mosaic[0].astype("uint8")
 
-# ------------------------------------------------------------
-# 4) Save result
-# ------------------------------------------------------------
+    out_meta = src_files[0].meta.copy()
+    out_meta.update({
+        "driver": "GTiff",
+        "height": mosaic.shape[0],
+        "width": mosaic.shape[1],
+        "transform": out_transform,
+        "count": 1,
+        "dtype": "uint8",
+        "compress": "lzw"
+    })
 
-out_meta = src_files[0].meta.copy()
+    output_file = base_folder / f"wheat_mask_{year}.tif"
 
-out_meta.update({
-    "driver": "GTiff",
-    "height": wheat_mask.shape[0],
-    "width": wheat_mask.shape[1],
-    "transform": out_transform,
-    "count": 1,
-    "dtype": "uint8",
-    "compress": "lzw"
-})
+    with rasterio.open(output_file, "w", **out_meta) as dest:
+        dest.write(mosaic, 1)
 
-with rasterio.open(output_file, "w", **out_meta) as dest:
-    dest.write(wheat_mask, 1)
+    print(f"Saved wheat mask to: {output_file}")
 
-print(f"Saved wheat mask to: {output_file}")
+    for src in src_files:
+        src.close()
 
-
-# ------------------------------------------------------------
-# 5) Cleanup
-# ------------------------------------------------------------
-
-for src in src_files:
-    src.close()
-
-print("Done.")
+print("\nAll years processed.")

@@ -3,7 +3,7 @@ import zipfile
 import re
 
 # Root folder containing the ZIP files
-src_dir = Path(r"C:\Users\lukas\Documents\Studium\Remote_Sensing_Products\project\crop_yields\data\crop_types\crop_types2\Results")
+src_dir = Path(r"C:\Users\lukas\Documents\Studium\Remote_Sensing_Products\project\crop_yields\data\crop_types_D\crop_types_2\Results")
 
 # Output base folder
 out_dir = src_dir / "extracted_by_year"
